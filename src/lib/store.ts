@@ -59,6 +59,15 @@ const saveTask = (task: LabelTask | null) => {
   }
 };
 
+function uniqueSamplesById(samples: EISample[]): EISample[] {
+  const seen = new Set<number>();
+  return samples.filter((sample) => {
+    if (seen.has(sample.id)) return false;
+    seen.add(sample.id);
+    return true;
+  });
+}
+
 export const useApp = create<AppState>((set) => ({
   connected: false,
   project: null,
@@ -104,7 +113,8 @@ export const useApp = create<AppState>((set) => ({
         debugSession: preset.debugSession ?? s.debugSession,
       };
     }),
-  setSamples: (samples, totalCount) => set({ samples, totalCount, activeIndex: 0 }),
+  setSamples: (samples, totalCount) =>
+    set({ samples: uniqueSamplesById(samples), totalCount, activeIndex: 0 }),
   setActiveIndex: (activeIndex) => set({ activeIndex }),
   setCategory: (category) => set({ category }),
   setTask: (task) => {

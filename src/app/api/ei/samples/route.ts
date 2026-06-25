@@ -9,6 +9,15 @@ import type { EIProjectMetadata, EISample } from "@/lib/types";
 
 export const runtime = "nodejs";
 
+function uniqueSamplesById(samples: EISample[]): EISample[] {
+  const seen = new Set<number>();
+  return samples.filter((sample) => {
+    if (seen.has(sample.id)) return false;
+    seen.add(sample.id);
+    return true;
+  });
+}
+
 export async function GET(req: Request) {
   const session = await getSession(req);
   traceSession(req, "samples", session);
@@ -118,7 +127,7 @@ export async function GET(req: Request) {
             }
           }
 
-          const finalSamples = interleaved.slice(0, limitVal);
+          const finalSamples = uniqueSamplesById(interleaved).slice(0, limitVal);
           const totalCount =
             results.reduce((acc, r) => acc + r.totalCount, 0) + unlabeledSamples.length;
 
@@ -144,9 +153,10 @@ export async function GET(req: Request) {
       { status: result.status || 502 },
     );
   }
+  const samples = uniqueSamplesById(result.data?.samples ?? []);
   return NextResponse.json({
     success: true,
-    samples: result.data?.samples ?? [],
+    samples,
     totalCount: result.data?.totalCount ?? 0,
   });
 }

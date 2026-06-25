@@ -59,6 +59,22 @@ function serializeAnnotation(annotation: unknown): unknown {
   return annotation;
 }
 
+function isRemoveChildRace(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return (
+    (error.name === "NotFoundError" || error instanceof DOMException) &&
+    /removeChild|not a child/i.test(error.message)
+  );
+}
+
+function destroyLabelStudio(instance: LSInstance | null) {
+  try {
+    instance?.destroy?.();
+  } catch (error) {
+    if (!isRemoveChildRace(error)) throw error;
+  }
+}
+
 /* Restyle Label Studio's action bar to match the app's shadcn buttons. */
 const LS_THEME = `
 body {
@@ -993,6 +1009,7 @@ export default function LabelerEmbed() {
     const originalFetch = window.fetch;
     const originalXhrOpen = XMLHttpRequest.prototype.open;
     let activeSessionToken: string | null = null;
+    let renderSeq = 0;
 
     function withSessionHeader(init?: RequestInit): RequestInit | undefined {
       if (!activeSessionToken) return init;
@@ -1192,6 +1209,7 @@ export default function LabelerEmbed() {
       task: LSTask,
       opts?: { autoAnnotate?: boolean; autoAccept?: boolean; sessionToken?: string | null },
     ) {
+      const seq = ++renderSeq;
       activeSessionToken = opts?.sessionToken ?? null;
       if (task?.data?.image) {
         const warmupBody = {
@@ -1215,9 +1233,18 @@ export default function LabelerEmbed() {
       loadLabelStudio()
         .then((LabelStudioCtor) => {
           if (!rootRef.current) return;
-          instanceRef.current?.destroy?.();
-          rootRef.current.innerHTML = "";
-          instanceRef.current = new LabelStudioCtor(rootRef.current, {
+          if (seq !== renderSeq) return;
+          destroyLabelStudio(instanceRef.current);
+          instanceRef.current = null;
+          rootRef.current.replaceChildren();
+
+          const mount = document.createElement("div");
+          mount.className = "ls-instance-root";
+          mount.style.height = "100%";
+          mount.style.width = "100%";
+          rootRef.current.appendChild(mount);
+
+          instanceRef.current = new LabelStudioCtor(mount, {
             config,
             task,
             interfaces: INTERFACES,
@@ -1353,8 +1380,11 @@ export default function LabelerEmbed() {
         .catch((e) => {
           post("error", e.message || "Failed to load Label Studio bundles");
           if (rootRef.current) {
-            rootRef.current.innerHTML =
-              '<div style="padding:2rem;text-align:center;color:#888;font-family:sans-serif">Could not load the labeling canvas.</div>';
+            rootRef.current.replaceChildren();
+            const errorEl = document.createElement("div");
+            errorEl.style.cssText = "padding:2rem;text-align:center;color:#888;font-family:sans-serif";
+            errorEl.textContent = "Could not load the labeling canvas.";
+            rootRef.current.appendChild(errorEl);
           }
         });
     }
@@ -1468,7 +1498,8 @@ export default function LabelerEmbed() {
       window.scrollBy = originalWindowScrollBy;
       window.fetch = originalFetch;
       XMLHttpRequest.prototype.open = originalXhrOpen;
-      instanceRef.current?.destroy?.();
+      renderSeq++;
+      destroyLabelStudio(instanceRef.current);
       instanceRef.current = null;
     };
   }, []);
