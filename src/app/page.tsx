@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { SiteHeader } from "@/components/site-header";
 import { ConnectPanel } from "@/components/connect-panel";
 import { UnicornHero } from "@/components/unicorn-decor";
@@ -29,7 +30,31 @@ const FEATURES = [
   },
 ];
 
-export default function Home() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+function firstParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function toSearchParams(params: Awaited<SearchParams>): URLSearchParams {
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (Array.isArray(value)) {
+      for (const item of value) qs.append(key, item);
+    } else if (value !== undefined) {
+      qs.set(key, value);
+    }
+  }
+  return qs;
+}
+
+export default async function Home({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
+  const apiKey = firstParam(params.apiKey)?.trim();
+  if (apiKey && /^ei_/.test(apiKey)) {
+    redirect(`/label?${toSearchParams(params)}`);
+  }
+
   return (
     <>
       <SiteHeader />
