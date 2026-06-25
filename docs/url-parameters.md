@@ -13,6 +13,7 @@ case-insensitive, and anything invalid is silently ignored.
 |---|---|---|---|
 | `apiKey` | | `ei_…` | Edge Impulse API key. Used to open a session, then stripped from the address bar. |
 | `project` | `eiProject` | int ≥ 1 | Project ID to connect to. Not required when `apiKey` is provided (API keys are scoped to a single project). |
+| `sampleId` | | int ≥ 1 | Open this sample first. The sample is added to the queue if it is not in the initial batch. |
 | `category` | | `training` · `testing` · `anomaly` | Which dataset split to load. |
 | `labels` | | comma-separated list | Filter the sample queue to these labels, e.g. `labels=dog,cat`. |
 | `task` | | `classify` · `detect` · `audio` · `timeseries` · `sam` · `transcribe` | Force a labeling template instead of auto-detecting per sample. |

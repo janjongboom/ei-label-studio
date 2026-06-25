@@ -119,6 +119,7 @@ export interface SamplesQuery {
   labels?: string[];
   limit?: number;
   offset?: number;
+  sampleId?: number;
   expectedProjectId?: number;
 }
 
@@ -128,8 +129,10 @@ export async function getSamples(q: SamplesQuery): Promise<{ samples: EISample[]
   if (q.labels?.length) params.set("labels", q.labels.join(","));
   if (q.limit != null) params.set("limit", String(q.limit));
   if (q.offset != null) params.set("offset", String(q.offset));
+  if (q.sampleId != null) params.set("sampleId", String(q.sampleId));
   debugLog("getSamples:start", {
     expectedProjectId: q.expectedProjectId,
+    sampleId: q.sampleId,
     category: q.category,
     limit: q.limit,
     labels: q.labels,

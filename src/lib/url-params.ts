@@ -8,6 +8,7 @@ import type { EICategory, LabelTask, WorkMode } from "./types";
 export interface UrlPreset {
   apiKey?: string;
   projectId?: number;
+  sampleId?: number;
   category?: EICategory;
   labels?: string[];
   task?: LabelTask;
@@ -61,6 +62,9 @@ export function parsePreset(input: URLSearchParams | string): UrlPreset {
 
   const projectId = int(p.get("project") ?? p.get("eiProject"), 1);
   if (projectId !== undefined) preset.projectId = projectId;
+
+  const sampleId = int(p.get("sampleId"), 1);
+  if (sampleId !== undefined) preset.sampleId = sampleId;
 
   const category = enumv(p.get("category"), ["training", "testing", "anomaly"] as const);
   if (category) preset.category = category;

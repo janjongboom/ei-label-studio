@@ -92,6 +92,7 @@ export function Workspace() {
     autoAnnotate,
     autoAccept,
     activeIndex,
+    preset,
     setConnected,
     applyPreset,
     setSamples,
@@ -119,6 +120,7 @@ export function Workspace() {
   const didAutoCollapse = useRef(false);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const projectId = project?.id;
+  const targetSampleId = preset?.sampleId;
   const sessionToken = getEiSessionToken();
 
   // Warm the large vendored Label Studio bundle as soon as the workspace mounts,
@@ -204,16 +206,21 @@ export function Workspace() {
         category,
         limit,
         labels: labelFilter.length ? labelFilter : undefined,
+        sampleId: targetSampleId,
         expectedProjectId: projectId,
       });
       setSamples(list, list.length);
+      if (targetSampleId) {
+        const targetIndex = list.findIndex((sample) => sample.id === targetSampleId);
+        if (targetIndex >= 0) setActiveIndex(targetIndex);
+      }
       setLabeledIds(new Set());
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not load samples");
     } finally {
       setLoading(false);
     }
-  }, [category, limit, labelFilter, projectId, setSamples]);
+  }, [category, limit, labelFilter, targetSampleId, projectId, setSamples, setActiveIndex]);
 
   useEffect(() => {
     if (connected && project) {

@@ -18,6 +18,7 @@ interface Param {
 const PARAMS: Param[] = [
   { name: "apiKey", type: "ei_…", desc: "Edge Impulse API key. Used to open a session, then stripped from the address bar." },
   { name: "project", alias: "eiProject", type: "int ≥ 1", desc: "Project ID to connect to. Not required when apiKey is provided (API keys are scoped to a single project)." },
+  { name: "sampleId", type: "int ≥ 1", desc: "Open this sample first. The sample is added to the queue if it is not in the initial batch." },
   { name: "category", type: "training | testing | anomaly", desc: "Which dataset split to load." },
   { name: "labels", type: "comma list", desc: "Filter the sample queue to these labels, e.g. labels=dog,cat." },
   { name: "task", type: "classify | detect | audio | timeseries | sam | transcribe", desc: "Force a labeling template instead of auto-detecting per sample." },

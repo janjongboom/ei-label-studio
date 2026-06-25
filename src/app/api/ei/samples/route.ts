@@ -5,9 +5,15 @@ import {
   studioFetch,
   traceSession,
 } from "@/lib/ei-server";
-import type { EIProjectMetadata, EISample } from "@/lib/types";
+import type { EIProjectMetadata, EISample, EISession } from "@/lib/types";
 
 export const runtime = "nodejs";
+
+function sampleFromPayload(payload: unknown): EISample | null {
+  const data = payload as { sample?: unknown; id?: unknown };
+  const sample = (data?.sample ?? data) as EISample | undefined;
+  return typeof sample?.id === "number" ? sample : null;
+}
 
 function uniqueSamplesById(samples: EISample[]): EISample[] {
   const seen = new Set<number>();
@@ -16,6 +22,34 @@ function uniqueSamplesById(samples: EISample[]): EISample[] {
     seen.add(sample.id);
     return true;
   });
+}
+
+async function getSampleById(projectId: number, sampleId: number, session: EISession) {
+  const result = await studioFetch<unknown>(session, `/${projectId}/raw-data/${sampleId}`);
+  if (!result.ok) return null;
+  return sampleFromPayload(result.data);
+}
+
+async function includeRequestedSample(
+  samples: EISample[],
+  requestedSampleId: number | null,
+  session: EISession,
+  limit: number,
+): Promise<EISample[]> {
+  const unique = uniqueSamplesById(samples);
+  if (!requestedSampleId) return unique;
+
+  const existingIndex = unique.findIndex((sample) => sample.id === requestedSampleId);
+  if (existingIndex === 0) return unique;
+  if (existingIndex > 0) {
+    const [sample] = unique.splice(existingIndex, 1);
+    unique.unshift(sample);
+    return unique;
+  }
+
+  const requested = await getSampleById(session.projectId, requestedSampleId, session);
+  if (!requested) return unique;
+  return uniqueSamplesById([requested, ...unique]).slice(0, limit);
 }
 
 export async function GET(req: Request) {
@@ -39,6 +73,8 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const qp = new URLSearchParams();
   const category = url.searchParams.get("category");
+  const requestedSampleId = Number(url.searchParams.get("sampleId"));
+  const sampleId = Number.isFinite(requestedSampleId) && requestedSampleId > 0 ? requestedSampleId : null;
   if (category) qp.set("category", category);
   const labels = url.searchParams.get("labels");
   if (labels) {
@@ -127,7 +163,7 @@ export async function GET(req: Request) {
             }
           }
 
-          const finalSamples = uniqueSamplesById(interleaved).slice(0, limitVal);
+          const finalSamples = await includeRequestedSample(interleaved, sampleId, session, limitVal);
           const totalCount =
             results.reduce((acc, r) => acc + r.totalCount, 0) + unlabeledSamples.length;
 
@@ -153,7 +189,8 @@ export async function GET(req: Request) {
       { status: result.status || 502 },
     );
   }
-  const samples = uniqueSamplesById(result.data?.samples ?? []);
+  const limitVal = Number(url.searchParams.get("limit") || "200");
+  const samples = await includeRequestedSample(result.data?.samples ?? [], sampleId, session, limitVal);
   return NextResponse.json({
     success: true,
     samples,

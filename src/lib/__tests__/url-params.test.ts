@@ -45,6 +45,18 @@ describe("parsePreset", () => {
     });
   });
 
+  describe("sampleId", () => {
+    it("parses the `sampleId` param", () => {
+      expect(parsePreset("sampleId=14802").sampleId).toBe(14802);
+    });
+
+    it("drops invalid sample ids", () => {
+      expect(parsePreset("sampleId=0").sampleId).toBeUndefined();
+      expect(parsePreset("sampleId=nope").sampleId).toBeUndefined();
+      expect(parsePreset("sample=77").sampleId).toBeUndefined();
+    });
+  });
+
   describe("category", () => {
     it("parses a known category", () => {
       expect(parsePreset("category=testing").category).toBe("testing");
@@ -152,11 +164,12 @@ describe("parsePreset", () => {
 
   it("parses a full, mixed query into a complete preset", () => {
     const preset = parsePreset(
-      "apiKey=ei_live&project=12&category=training&labels=a,b&task=classify&mode=relabel&autoAdvance=1&limit=50&offset=10&theme=unicorn&embed=0&studioHost=https://s&ingestionHost=https://i",
+      "apiKey=ei_live&project=12&sampleId=34&category=training&labels=a,b&task=classify&mode=relabel&autoAdvance=1&limit=50&offset=10&theme=unicorn&embed=0&studioHost=https://s&ingestionHost=https://i",
     );
     expect(preset).toEqual({
       apiKey: "ei_live",
       projectId: 12,
+      sampleId: 34,
       category: "training",
       labels: ["a", "b"],
       task: "classify",
