@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import {
   expectedProjectMismatch,
   getSession,
-  noStore,
   studioFetch,
   traceSession,
 } from "@/lib/ei-server";
@@ -13,18 +12,18 @@ export async function GET(req: Request) {
   const session = await getSession(req);
   traceSession(req, "project-metadata", session);
   if (!session) {
-    return noStore(NextResponse.json({ success: false, error: "Not connected" }, { status: 401 }));
+    return NextResponse.json({ success: false, error: "Not connected" }, { status: 401 });
   }
   const mismatch = expectedProjectMismatch(req, session);
   if (mismatch) {
     traceSession(req, "project-metadata:mismatch", session, mismatch);
-    return noStore(NextResponse.json(
+    return NextResponse.json(
       {
         success: false,
         error: `Session project mismatch: workspace expected project ${mismatch.expected}, but the session token is for project ${mismatch.actual}.`,
       },
       { status: 409 },
-    ));
+    );
   }
 
   const result = await studioFetch<{ metadata?: unknown }>(
@@ -32,13 +31,13 @@ export async function GET(req: Request) {
     `/${session.projectId}/raw-data/project-metadata`,
   );
   if (!result.ok) {
-    return noStore(NextResponse.json(
+    return NextResponse.json(
       { success: false, error: result.error },
       { status: result.status || 502 },
-    ));
+    );
   }
-  return noStore(NextResponse.json({
+  return NextResponse.json({
     success: true,
     metadata: result.data?.metadata,
-  }));
+  });
 }

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import {
-  noStore,
   sealSession,
   studioFetch,
   traceSession,
@@ -80,11 +79,11 @@ export async function POST(req: Request) {
     );
   }
 
-  const res = noStore(NextResponse.json({
+  const res = NextResponse.json({
     success: true,
     project: result.data?.project,
     sessionToken: sealSession(session),
-  }));
+  });
   traceSession(req, "session:connect:done", session, {
     resolvedProjectId: result.data?.project?.id,
   });
@@ -94,5 +93,5 @@ export async function POST(req: Request) {
 export async function DELETE() {
   // Stateless session tokens are kept in tab-scoped sessionStorage client-side.
   // Disconnect is therefore a client-side token discard.
-  return noStore(NextResponse.json({ success: true }));
+  return NextResponse.json({ success: true });
 }

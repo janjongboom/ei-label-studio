@@ -105,12 +105,6 @@ export async function getSession(req: Request): Promise<EISession | null> {
   return token ? openSessionToken(token) : null;
 }
 
-export function noStore<T extends Response>(res: T): T {
-  res.headers.set("Cache-Control", "no-store, max-age=0");
-  res.headers.append("Vary", "Authorization, x-ei-session-token, x-ei-session");
-  return res;
-}
-
 function requestDebugEnabled(req: Request): boolean {
   if (req.headers.get("x-ei-debug") === "1") return true;
   try {
