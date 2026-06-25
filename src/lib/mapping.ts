@@ -1,8 +1,15 @@
 import type { EIBoundingBox, EISample, LabelTask, LSTask, LSPrediction, LSResult } from "./types";
 
-/** Build the media proxy URL Label Studio fetches (same-origin, cookie-authed). */
-export function mediaUrl(projectId: number, sampleId: number, kind: string): string {
-  return `/api/ei/media/${projectId}/${sampleId}?kind=${kind}`;
+/** Build the media proxy URL Label Studio fetches (same-origin, token-authed). */
+export function mediaUrl(
+  projectId: number,
+  sampleId: number,
+  kind: string,
+  sessionToken?: string | null,
+): string {
+  const params = new URLSearchParams({ kind });
+  if (sessionToken) params.set("session", sessionToken);
+  return `/api/ei/media/${projectId}/${sampleId}?${params}`;
 }
 
 /**
@@ -13,17 +20,18 @@ export function sampleToTask(
   sample: EISample,
   projectId: number,
   task: LabelTask,
+  sessionToken?: string | null,
 ): LSTask {
   const data: Record<string, string> = {};
   let predictions: LSPrediction[] | undefined;
   let annotations: unknown[] = [];
 
   if (task === "classify" || task === "detect" || task === "sam") {
-    data.image = mediaUrl(projectId, sample.id, "image");
+    data.image = mediaUrl(projectId, sample.id, "image", sessionToken);
   } else if (task === "audio" || task === "transcribe") {
-    data.audio = mediaUrl(projectId, sample.id, "audio");
+    data.audio = mediaUrl(projectId, sample.id, "audio", sessionToken);
   } else {
-    data.timeseries = mediaUrl(projectId, sample.id, "timeseries");
+    data.timeseries = mediaUrl(projectId, sample.id, "timeseries", sessionToken);
   }
 
   const hasLabel = sample.label && sample.label !== "unlabeled" && sample.label !== "-";

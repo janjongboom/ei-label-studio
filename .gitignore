@@ -58,4 +58,4 @@ __pycache__/
 /logs.txt
 /scratch/
 
-
+.pnpm-store/

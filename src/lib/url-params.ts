@@ -21,6 +21,8 @@ export interface UrlPreset {
   offset?: number;
   theme?: "dark" | "light" | "unicorn";
   embed?: boolean;
+  /** Print client/server session traces for debugging iframe/session bugs. */
+  debugSession?: boolean;
   studioHost?: string;
   ingestionHost?: string;
 }
@@ -95,6 +97,9 @@ export function parsePreset(input: URLSearchParams | string): UrlPreset {
 
   const embed = bool(p.get("embed"));
   if (embed !== undefined) preset.embed = embed;
+
+  const debugSession = bool(p.get("debugSession") ?? p.get("debug"));
+  if (debugSession !== undefined) preset.debugSession = debugSession;
 
   const studioHost = p.get("studioHost");
   if (studioHost) preset.studioHost = studioHost.trim();

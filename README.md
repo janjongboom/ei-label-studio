@@ -12,8 +12,9 @@ back to Edge Impulse — all driven by shareable URLs.
 
 ## Features
 
-- **Connect with an API key** — paste a project API key (`ei_…`) + project ID. The key is kept
-  in a secure, http-only cookie and proxied server-side; it never touches the URL or local storage.
+- **Connect with an API key** — paste a project API key (`ei_…`) + project ID. The key is sealed
+  into an encrypted, tab-scoped session token and proxied server-side, so separate tabs/iframes
+  can connect to different projects independently.
 - **Image, audio & time-series** — labeling templates that map onto Edge Impulse modalities:
   image classification, bounding boxes, audio classification, and multi-axis time-series labels.
   The modality is auto-detected per sample, or you can force a template.
@@ -30,7 +31,7 @@ back to Edge Impulse — all driven by shareable URLs.
 ## How it works
 
 ```
-Browser --POST /api/ei/session--> http-only cookie (apiKey + projectId)
+Browser --POST /api/ei/session--> encrypted session token (apiKey + projectId)
    |
    |- GET  /api/ei/projects        -> Studio  GET /v1/api/projects
    |- GET  /api/ei/samples         -> Studio  GET /v1/api/{projectId}/raw-data

@@ -10,7 +10,7 @@ const CATEGORIES = new Set(["training", "testing", "anomaly"]);
  * Expects multipart/form-data: file, label, category.
  */
 export async function POST(req: Request) {
-  const session = await getSession();
+  const session = await getSession(req);
   if (!session) {
     return NextResponse.json({ success: false, error: "Not connected" }, { status: 401 });
   }

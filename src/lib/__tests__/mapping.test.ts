@@ -21,6 +21,12 @@ describe("mediaUrl", () => {
   it("builds a same-origin proxy URL with the kind query param", () => {
     expect(mediaUrl(3, 77, "image")).toBe("/api/ei/media/3/77?kind=image");
   });
+
+  it("adds an opaque session token when provided", () => {
+    expect(mediaUrl(3, 77, "image", "abc.def")).toBe(
+      "/api/ei/media/3/77?kind=image&session=abc.def",
+    );
+  });
 });
 
 describe("sampleToTask", () => {

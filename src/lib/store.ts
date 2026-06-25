@@ -18,6 +18,7 @@ interface AppState {
   autoAccept: boolean;
   embed: boolean;
   limit: number;
+  debugSession: boolean;
   // data
   samples: EISample[];
   totalCount: number;
@@ -70,12 +71,21 @@ export const useApp = create<AppState>((set) => ({
   autoAccept: true,
   embed: false,
   limit: 200,
+  debugSession: false,
   samples: [],
   totalCount: 0,
   activeIndex: 0,
   preset: null,
 
-  setConnected: (project) => set({ connected: !!project, project }),
+  setConnected: (project) =>
+    set((s) => {
+      const projectChanged = s.project?.id !== project?.id;
+      return {
+        connected: !!project,
+        project,
+        ...(projectChanged ? { samples: [], totalCount: 0, activeIndex: 0 } : {}),
+      };
+    }),
   applyPreset: (preset) =>
     set((s) => {
       const task = preset.task !== undefined ? preset.task : s.task;
@@ -91,6 +101,7 @@ export const useApp = create<AppState>((set) => ({
         autoAccept: preset.autoAccept ?? s.autoAccept,
         embed: preset.embed ?? s.embed,
         limit: preset.limit ?? s.limit,
+        debugSession: preset.debugSession ?? s.debugSession,
       };
     }),
   setSamples: (samples, totalCount) => set({ samples, totalCount, activeIndex: 0 }),

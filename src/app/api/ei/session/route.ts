@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import {
-  SESSION_COOKIE,
-  serializeSession,
+  noStore,
+  sealSession,
   studioFetch,
+  traceSession,
 } from "@/lib/ei-server";
 import type { EIProject, EISession } from "@/lib/types";
 
@@ -39,6 +40,9 @@ export async function POST(req: Request) {
     studioHost: body.studioHost?.trim() || undefined,
     ingestionHost: body.ingestionHost?.trim() || undefined,
   };
+  traceSession(req, "session:connect:start", session, {
+    requestedProjectId: projectId,
+  });
 
   // A project API key is scoped to one project, so the ID is optional — when
   // it's missing, resolve it from the key itself.
@@ -76,19 +80,19 @@ export async function POST(req: Request) {
     );
   }
 
-  const res = NextResponse.json({ success: true, project: result.data?.project });
-  res.cookies.set(SESSION_COOKIE, serializeSession(session), {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
+  const res = noStore(NextResponse.json({
+    success: true,
+    project: result.data?.project,
+    sessionToken: sealSession(session),
+  }));
+  traceSession(req, "session:connect:done", session, {
+    resolvedProjectId: result.data?.project?.id,
   });
   return res;
 }
 
 export async function DELETE() {
-  const res = NextResponse.json({ success: true });
-  res.cookies.delete(SESSION_COOKIE);
-  return res;
+  // Stateless session tokens are kept in tab-scoped sessionStorage client-side.
+  // Disconnect is therefore a client-side token discard.
+  return noStore(NextResponse.json({ success: true }));
 }

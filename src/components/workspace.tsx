@@ -43,7 +43,16 @@ import { SampleQueue } from "@/components/sample-queue";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/lib/store";
 import { LS_VENDOR_CSS, LS_VENDOR_JS } from "@/lib/ls-vendor";
-import { getSamples, getProjects, relabel, setBoundingBoxes, getProjectMetadata } from "@/lib/ei-client";
+import {
+  connect,
+  getEiSessionToken,
+  getSamples,
+  getProjects,
+  relabel,
+  setBoundingBoxes,
+  getProjectMetadata,
+  setEiDebugSession,
+} from "@/lib/ei-client";
 import { parsePreset, getIframeQueryParams } from "@/lib/url-params";
 import { detectModality } from "@/lib/modality";
 import { defaultTaskFor, projectTypeLabel } from "@/lib/project-type";
@@ -109,6 +118,8 @@ export function Workspace() {
   const inspectorRef = useRef<ImperativePanelHandle>(null);
   const didAutoCollapse = useRef(false);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
+  const projectId = project?.id;
+  const sessionToken = getEiSessionToken();
 
   // Warm the large vendored Label Studio bundle as soon as the workspace mounts,
   // so its download overlaps the samples fetch instead of starting only once the
@@ -136,8 +147,8 @@ export function Workspace() {
     else p.collapse();
   };
 
-  // On direct loads the in-memory store is empty even when the session cookie
-  // is valid. Apply URL presets, then rehydrate from the existing session
+  // On direct loads the in-memory store is empty even when the tab-scoped
+  // session token is valid. Apply URL presets, then rehydrate from the existing session
   // before deciding whether to send the user back to connect.
   useEffect(() => {
     if (connected && project) {
@@ -147,9 +158,27 @@ export function Workspace() {
     let cancelled = false;
     const preset = parsePreset(getIframeQueryParams());
     applyPreset(preset);
+    setEiDebugSession(!!preset.debugSession);
     if (preset.theme) setTheme(preset.theme);
+    if (preset.apiKey && window.history.replaceState) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("apiKey");
+      window.history.replaceState({}, "", url.toString());
+    }
     (async () => {
       try {
+        if (preset.apiKey) {
+          const { project: connectedProject } = await connect({
+            apiKey: preset.apiKey,
+            projectId: preset.projectId,
+            studioHost: preset.studioHost,
+            ingestionHost: preset.ingestionHost,
+          });
+          if (cancelled) return;
+          setConnected(connectedProject);
+          setHydrating(false);
+          return;
+        }
         const projects = await getProjects();
         if (cancelled) return;
         if (projects.length) {
@@ -175,6 +204,7 @@ export function Workspace() {
         category,
         limit,
         labels: labelFilter.length ? labelFilter : undefined,
+        expectedProjectId: projectId,
       });
       setSamples(list, list.length);
       setLabeledIds(new Set());
@@ -183,11 +213,11 @@ export function Workspace() {
     } finally {
       setLoading(false);
     }
-  }, [category, limit, labelFilter, setSamples]);
+  }, [category, limit, labelFilter, projectId, setSamples]);
 
   useEffect(() => {
     if (connected && project) {
-      void getProjectMetadata()
+      void getProjectMetadata(project.id)
         .then((res) => {
           if (res?.metadata?.type === "classes") {
             const labels = res.metadata.all?.labels?.map((l) => l.label) ?? [];
@@ -283,16 +313,16 @@ export function Workspace() {
       }
     };
     
-    img.src = mediaUrl(project.id, active.id, "image");
-  }, [active, project?.id, effectiveTask]);
+    img.src = mediaUrl(project.id, active.id, "image", sessionToken);
+  }, [active, project?.id, effectiveTask, sessionToken]);
 
   const lsTask = useMemo(() => {
     if (!active || !project) return null;
     const sampleCopy = resolvedDims
       ? { ...active, imageDimensions: resolvedDims }
       : active;
-    return sampleToTask(sampleCopy, project.id, effectiveTask);
-  }, [active, project, effectiveTask, resolvedDims]);
+    return sampleToTask(sampleCopy, project.id, effectiveTask, sessionToken);
+  }, [active, project, effectiveTask, resolvedDims, sessionToken]);
 
   const goTo = useCallback(
     (i: number) => {
@@ -309,14 +339,14 @@ export function Workspace() {
 
   const handleSubmit = useCallback(
     async (annotation: unknown) => {
-      if (!active) return;
+      if (!active || !project) return;
       setSubmitting(true);
       try {
         if (effectiveTask === "detect" || effectiveTask === "sam") {
           // Object detection: push the (edited) boxes back to EI as pixels.
           const dims = resolvedDims || active.imageDimensions;
           const boxes = boxesFromAnnotation(annotation, dims);
-          await setBoundingBoxes(active.id, boxes);
+          await setBoundingBoxes(active.id, boxes, project.id);
 
           const boxLabels = Array.from(new Set(boxes.map((b) => b.label)))
             .sort()
@@ -340,7 +370,7 @@ export function Workspace() {
             toast.error("Add a labeled segment before submitting.");
             return;
           }
-          await relabel(active.id, label);
+          await relabel(active.id, label, project.id);
           markLabeled(active.id, label);
           setLabeledIds((prev) => new Set(prev).add(active.id));
           toast.success(`Sample label set to “${label}”`, {
@@ -356,7 +386,7 @@ export function Workspace() {
           toast.error(effectiveTask === "transcribe" ? "Add a transcription before submitting." : "Pick a class before submitting.");
           return;
         }
-        await relabel(active.id, label);
+        await relabel(active.id, label, project.id);
         markLabeled(active.id, label);
         setLabeledIds((prev) => new Set(prev).add(active.id));
         toast.success(effectiveTask === "transcribe" ? `Transcribed to “${label}”` : `Relabeled to “${label}”`);
@@ -367,7 +397,7 @@ export function Workspace() {
         setSubmitting(false);
       }
     },
-    [active, effectiveTask, resolvedDims, advance, markLabeled],
+    [active, effectiveTask, resolvedDims, advance, markLabeled, project],
   );
 
   // Embed mode hides the surrounding chrome for iframe use.
@@ -527,6 +557,7 @@ export function Workspace() {
             task={lsTask}
             autoAnnotate={autoAnnotate}
             autoAccept={autoAccept}
+            sessionToken={sessionToken}
             onSubmit={handleSubmit}
             onSkip={() => goTo(activeIndex + 1)}
             onNav={(dir) => goTo(activeIndex + dir)}

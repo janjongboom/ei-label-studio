@@ -68,7 +68,7 @@ async function stageImage(
 }
 
 export async function POST(req: Request) {
-  const session = await getSession();
+  const session = await getSession(req);
   if (!session) {
     return NextResponse.json({ success: false, error: "Not connected" }, { status: 401 });
   }

@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { connect, disconnect, getProjects } from "@/lib/ei-client";
+import { connect, disconnect, getProjects, setEiDebugSession } from "@/lib/ei-client";
 import { labelingMethodLabel } from "@/lib/project-type";
 import { parsePreset, getIframeQueryParams } from "@/lib/url-params";
 import { useApp } from "@/lib/store";
@@ -41,6 +41,7 @@ export function ConnectPanel() {
   useEffect(() => {
     const preset = parsePreset(getIframeQueryParams());
     applyPreset(preset);
+    setEiDebugSession(!!preset.debugSession);
     if (preset.apiKey) setApiKey(preset.apiKey);
     if (preset.projectId) setProjectId(String(preset.projectId));
     if (preset.studioHost) setStudioHost(preset.studioHost);
@@ -274,8 +275,8 @@ export function ConnectPanel() {
           </a>
         </div>
         <p className="text-xs text-muted-foreground">
-          Your key is stored in a secure, http-only cookie and proxied server-side. It never
-          touches the URL or browser storage.
+          Your key is sealed into an encrypted tab-scoped session token and proxied server-side.
+          It is removed from the URL after connecting.
         </p>
       </CardContent>
     </Card>

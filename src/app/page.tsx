@@ -25,7 +25,7 @@ const FEATURES = [
   {
     icon: ShieldCheck,
     title: "Keys stay server-side",
-    body: "Your API key lives in a secure http-only cookie and is proxied through serverless functions. It never lands in the URL or local storage.",
+    body: "Your API key is sealed into an encrypted tab-scoped session token and proxied through serverless functions.",
   },
 ];
 

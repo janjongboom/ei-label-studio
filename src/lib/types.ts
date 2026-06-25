@@ -73,7 +73,7 @@ export interface EISample {
   isProcessing?: boolean;
 }
 
-/** Connection details kept in the httpOnly session cookie. */
+/** Connection details sealed into the encrypted per-tab session token. */
 export interface EISession {
   apiKey: string;
   projectId: number;

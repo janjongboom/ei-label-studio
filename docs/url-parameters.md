@@ -36,7 +36,8 @@ https://label.jennyspeelman.dev/?apiKey=ei_abc123
 ```
 
 Connects using the API key (which is scoped to a single project). The key is
-stored in a secure, http-only cookie and removed from the address bar on load.
+sealed into an encrypted tab-scoped session token and removed from the address
+bar on load.
 
 ### Training set with audio template
 
@@ -83,8 +84,9 @@ animations.
 ## Notes
 
 - The `apiKey` parameter is consumed on load and immediately removed from the
-  URL for security. It is stored in a secure, http-only session cookie and
-  proxied server-side — it never touches `localStorage` or client-side JS.
+  URL for security. It is sealed into an encrypted session token kept in
+  tab-scoped `sessionStorage`, so separate tabs or iframes can use different
+  projects at the same time.
 - Parameters are parsed by [`src/lib/url-params.ts`](../src/lib/url-params.ts).
 - The in-app docs page at [`/docs`](https://label.jennyspeelman.dev/docs)
   mirrors this reference.

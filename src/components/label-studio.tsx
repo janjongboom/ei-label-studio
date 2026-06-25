@@ -24,9 +24,19 @@ interface LabelStudioProps {
   /** Seed Label Studio's Auto-Annotation toggle + auto-accept (from URL presets). */
   autoAnnotate?: boolean;
   autoAccept?: boolean;
+  sessionToken?: string | null;
 }
 
-export default function LabelStudio({ config, task, onSubmit, onSkip, onNav, autoAnnotate, autoAccept }: LabelStudioProps) {
+export default function LabelStudio({
+  config,
+  task,
+  onSubmit,
+  onSkip,
+  onNav,
+  autoAnnotate,
+  autoAccept,
+  sessionToken,
+}: LabelStudioProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const ready = useRef(false);
   const { resolvedTheme } = useTheme();
@@ -72,6 +82,7 @@ export default function LabelStudio({ config, task, onSubmit, onSkip, onNav, aut
           theme: themeRef.current,
           autoAnnotate: flagsRef.current.autoAnnotate,
           autoAccept: flagsRef.current.autoAccept,
+          sessionToken,
         },
         origin,
       );
@@ -100,7 +111,7 @@ export default function LabelStudio({ config, task, onSubmit, onSkip, onNav, aut
     if (ready.current) send();
 
     return () => window.removeEventListener("message", onMessage);
-  }, [config, task]);
+  }, [config, task, sessionToken]);
 
   return (
     <div className="h-full w-full bg-background">

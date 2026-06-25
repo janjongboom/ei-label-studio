@@ -1,13 +1,31 @@
 import { NextResponse } from "next/server";
-import { getSession, studioFetch } from "@/lib/ei-server";
+import {
+  expectedProjectMismatch,
+  getSession,
+  noStore,
+  studioFetch,
+  traceSession,
+} from "@/lib/ei-server";
 import type { EIProjectMetadata, EISample } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
-  const session = await getSession();
+  const session = await getSession(req);
+  traceSession(req, "samples", session);
   if (!session) {
-    return NextResponse.json({ success: false, error: "Not connected" }, { status: 401 });
+    return noStore(NextResponse.json({ success: false, error: "Not connected" }, { status: 401 }));
+  }
+  const mismatch = expectedProjectMismatch(req, session);
+  if (mismatch) {
+    traceSession(req, "samples:mismatch", session, mismatch);
+    return noStore(NextResponse.json(
+      {
+        success: false,
+        error: `Session project mismatch: workspace expected project ${mismatch.expected}, but the session token is for project ${mismatch.actual}. Reconnect this tab or iframe.`,
+      },
+      { status: 409 },
+    ));
   }
 
   const url = new URL(req.url);
@@ -105,11 +123,11 @@ export async function GET(req: Request) {
           const totalCount =
             results.reduce((acc, r) => acc + r.totalCount, 0) + unlabeledSamples.length;
 
-          return NextResponse.json({
+          return noStore(NextResponse.json({
             success: true,
             samples: finalSamples,
             totalCount,
-          });
+          }));
         }
       }
     } catch {
@@ -122,14 +140,14 @@ export async function GET(req: Request) {
     `/${session.projectId}/raw-data?${qp}`,
   );
   if (!result.ok) {
-    return NextResponse.json(
+    return noStore(NextResponse.json(
       { success: false, error: result.error },
       { status: result.status || 502 },
-    );
+    ));
   }
-  return NextResponse.json({
+  return noStore(NextResponse.json({
     success: true,
     samples: result.data?.samples ?? [],
     totalCount: result.data?.totalCount ?? 0,
-  });
+  }));
 }

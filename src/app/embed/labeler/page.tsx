@@ -992,6 +992,14 @@ export default function LabelerEmbed() {
 
     const originalFetch = window.fetch;
     const originalXhrOpen = XMLHttpRequest.prototype.open;
+    let activeSessionToken: string | null = null;
+
+    function withSessionHeader(init?: RequestInit): RequestInit | undefined {
+      if (!activeSessionToken) return init;
+      const headers = new Headers(init?.headers);
+      headers.set("x-ei-session-token", activeSessionToken);
+      return { ...init, headers };
+    }
 
     window.fetch = async function (input, init) {
       let urlStr = "";
@@ -1005,7 +1013,7 @@ export default function LabelerEmbed() {
       if (urlStr && (urlStr.includes("/predict") || urlStr.includes("/predictions"))) {
         const redirectUrl = "/api/ei/predict";
         try {
-          const res = await originalFetch(redirectUrl, init);
+          const res = await originalFetch(redirectUrl, withSessionHeader(init));
           if (!res.ok) {
             const cloned = res.clone();
             cloned.json().then(data => {
@@ -1030,6 +1038,11 @@ export default function LabelerEmbed() {
       let targetUrl = url;
       if (typeof url === "string" && (url.includes("/predict") || url.includes("/predictions"))) {
         targetUrl = "/api/ei/predict";
+        const originalSend = this.send;
+        this.send = function (...sendArgs: any[]) {
+          if (activeSessionToken) this.setRequestHeader("x-ei-session-token", activeSessionToken);
+          return originalSend.apply(this, sendArgs as [Document | XMLHttpRequestBodyInit | null | undefined]);
+        };
         const originalOnReadyStateChange = this.onreadystatechange;
         this.onreadystatechange = function (e) {
           if (this.readyState === 4) {
@@ -1170,7 +1183,16 @@ export default function LabelerEmbed() {
       /* a real failure is surfaced when render() is actually attempted */
     });
 
-    function render(config: string, task: LSTask, opts?: { autoAnnotate?: boolean; autoAccept?: boolean }) {
+    function sessionHeaders(sessionToken?: string | null): HeadersInit {
+      return sessionToken ? { "x-ei-session-token": sessionToken } : {};
+    }
+
+    function render(
+      config: string,
+      task: LSTask,
+      opts?: { autoAnnotate?: boolean; autoAccept?: boolean; sessionToken?: string | null },
+    ) {
+      activeSessionToken = opts?.sessionToken ?? null;
       if (task?.data?.image) {
         const warmupBody = {
           action: "warmup",
@@ -1180,7 +1202,7 @@ export default function LabelerEmbed() {
         console.log("[SAM] Triggering background warmup/pre-embedding for image:", task.data.image);
         originalFetch("/api/ei/predict", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...sessionHeaders(opts?.sessionToken) },
           body: JSON.stringify(warmupBody),
         }).then(async (res) => {
           const data = await res.json().catch(() => ({}));
@@ -1263,7 +1285,7 @@ export default function LabelerEmbed() {
 
                 const promise = originalFetch("/api/ei/predict", {
                   method: "POST",
-                  headers: { "Content-Type": "application/json" },
+                  headers: { "Content-Type": "application/json", ...sessionHeaders(opts?.sessionToken) },
                   body: JSON.stringify(reqBody),
                 }).then(async (res) => {
                   const data = await res.json().catch(() => ({}));
@@ -1343,7 +1365,11 @@ export default function LabelerEmbed() {
       if (d?.source === "ls-host") {
         if (d.type === "render") {
           if (d.theme) setTheme(d.theme);
-          render(d.config, d.task, { autoAnnotate: d.autoAnnotate, autoAccept: d.autoAccept });
+          render(d.config, d.task, {
+            autoAnnotate: d.autoAnnotate,
+            autoAccept: d.autoAccept,
+            sessionToken: d.sessionToken,
+          });
         } else if (d.type === "theme") {
           setTheme(d.theme);
         }

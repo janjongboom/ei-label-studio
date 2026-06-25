@@ -85,8 +85,8 @@ export default function DocsPage() {
           </pre>
           <p className="text-sm text-muted-foreground">
             Connects using the API key (which is scoped to a single project), loads the training set
-            with the audio-classification template and auto-advance on. The key is stored in a
-            secure http-only cookie and removed from the URL on load.
+            with the audio-classification template and auto-advance on. The key is sealed into an
+            encrypted tab-scoped session token and removed from the URL on load.
           </p>
         </div>
 

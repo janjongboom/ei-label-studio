@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession, studioMedia, studioFetch } from "@/lib/ei-server";
+import { getSession, noStore, studioMedia, studioFetch, traceSession } from "@/lib/ei-server";
 
 export const runtime = "nodejs";
 
@@ -15,16 +15,18 @@ export async function GET(
   req: Request,
   ctx: { params: Promise<{ projectId: string; sampleId: string }> },
 ) {
-  const session = await getSession();
+  const session = await getSession(req);
+  traceSession(req, "media", session);
   if (!session) {
-    return NextResponse.json({ success: false, error: "Not connected" }, { status: 401 });
+    return noStore(NextResponse.json({ success: false, error: "Not connected" }, { status: 401 }));
   }
 
   const { projectId, sampleId } = await ctx.params;
   const pid = Number(projectId);
   const sid = Number(sampleId);
   if (pid !== session.projectId) {
-    return NextResponse.json({ success: false, error: "Project mismatch" }, { status: 403 });
+    traceSession(req, "media:mismatch", session, { requestedProjectId: pid, sampleId: sid });
+    return noStore(NextResponse.json({ success: false, error: "Project mismatch" }, { status: 403 }));
   }
 
   const kind = new URL(req.url).searchParams.get("kind") || "image";
@@ -33,10 +35,10 @@ export async function GET(
   if (kind === "timeseries") {
     const result = await studioFetch<RawPayload>(session, `/${pid}/raw-data/${sid}`);
     if (!result.ok || !result.data?.payload) {
-      return NextResponse.json(
+      return noStore(NextResponse.json(
         { success: false, error: result.error || "No payload" },
         { status: result.status || 502 },
-      );
+      ));
     }
     const { sensors = [], values = [], intervalMs = 0 } = result.data.payload;
     const cols = sensors.length ? sensors.map((s) => s.name) : ["value"];
@@ -66,10 +68,10 @@ export async function GET(
   const upstream = await studioMedia(session, path);
 
   if (!upstream.ok) {
-    return NextResponse.json(
+    return noStore(NextResponse.json(
       { success: false, error: `Edge Impulse media error (${upstream.status})` },
       { status: upstream.status || 502 },
-    );
+    ));
   }
 
   const headers = new Headers();
